@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#c2571a">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Marché de Darsalamy</title>
+<style>
+:root {
+  --bg: #faf6ee; --card: #ffffff; --text: #2b2418; --muted: #7a6f5c;
+  --accent: #c2571a; --accent-text: #ffffff; --line: #e8dfcc; --soft: #fbe9dc;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1710; --card: #262016; --text: #f3ecdd; --muted: #a89c85;
+    --accent: #e8803f; --accent-text: #1b1710; --line: #3a3224; --soft: #3b2a1b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1710; --card: #262016; --text: #f3ecdd; --muted: #a89c85;
+  --accent: #e8803f; --accent-text: #1b1710; --line: #3a3224; --soft: #3b2a1b;
+  color-scheme: dark;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.4;
+}
+main { max-width: 480px; margin: 0 auto; padding: 20px 16px 32px; }
+h1 { font-size: 1.4rem; margin: 0 0 2px; }
+.sub { color: var(--muted); font-size: .9rem; margin: 0 0 16px; }
+.card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 16px; padding: 18px; margin-bottom: 16px;
+}
+.hero { background: var(--accent); color: var(--accent-text); border: none; text-align: center; }
+.hero .label { font-size: .85rem; opacity: .85; text-transform: uppercase; letter-spacing: .06em; }
+.hero .big { font-size: 1.9rem; font-weight: 700; margin: 6px 0 2px; }
+.hero .when { font-size: 1.05rem; }
+.next-list { list-style: none; margin: 0; padding: 0; }
+.next-list li { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.next-list li:last-child { border-bottom: none; }
+.next-list span:last-child { color: var(--muted); }
+h2 { font-size: 1rem; margin: 0 0 10px; }
+.nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.nav button {
+  background: var(--soft); color: var(--text); border: 1px solid var(--line);
+  border-radius: 10px; width: 40px; height: 40px; font-size: 1.1rem; cursor: pointer;
+}
+.nav strong { text-transform: capitalize; }
+.grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.dow { font-size: .75rem; color: var(--muted); padding-bottom: 4px; }
+.day { padding: 9px 0; border-radius: 10px; font-size: .95rem; }
+.day.market { background: var(--accent); color: var(--accent-text); font-weight: 700; }
+.day.today { outline: 2px solid var(--text); outline-offset: -2px; }
+.legend { margin-top: 12px; font-size: .8rem; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
+.dot { display: inline-block; width: 11px; height: 11px; border-radius: 4px; background: var(--accent); margin-right: 5px; vertical-align: -1px; }
+.dot.t { background: transparent; border: 2px solid var(--text); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Marché de Darsalamy</h1>
+  <p class="sub">Le marché de Darsalamy a lieu tous les 5 jours.</p>
+
+  <section class="card hero">
+    <div class="label" id="label"></div>
+    <div class="big" id="big"></div>
+    <div class="when" id="when"></div>
+  </section>
+
+  <section class="card">
+    <h2>Prochains marchés</h2>
+    <ul class="next-list" id="next"></ul>
+  </section>
+
+  <section class="card">
+    <div class="nav">
+      <button id="prev" aria-label="Mois précédent">‹</button>
+      <strong id="month"></strong>
+      <button id="nextm" aria-label="Mois suivant">›</button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="legend">
+      <span><i class="dot"></i>Jour de marché</span>
+      <span><i class="dot t"></i>Aujourd’hui</span>
+    </div>
+  </section>
+</main>
+
+<script>
+// Réglages : un marché a eu lieu le 22 novembre 2026, puis tous les 5 jours.
+var REF = Date.UTC(2026, 10, 22);
+var CYCLE = 5;
+var DAY_MS = 86400000;
+var JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+var MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+
+function dayNum(y, m, d) { return Math.floor(Date.UTC(y, m, d) / DAY_MS); }
+var REF_N = Math.floor(REF / DAY_MS);
+function isMarket(n) { return (((n - REF_N) % CYCLE) + CYCLE) % CYCLE === 0; }
+function fromNum(n) { return new Date(n * DAY_MS); }
+function fmt(n) {
+  var d = fromNum(n);
+  return JOURS[d.getUTCDay()] + " " + d.getUTCDate() + " " + MOIS[d.getUTCMonth()];
+}
+
+var now = new Date();
+var todayN = dayNum(now.getFullYear(), now.getMonth(), now.getDate());
+
+// Prochain marché (aujourd’hui inclus)
+var nextN = todayN;
+while (!isMarket(nextN)) nextN++;
+var diff = nextN - todayN;
+
+document.getElementById("label").textContent = diff === 0 ? "Aujourd’hui" : "Prochain marché";
+document.getElementById("big").textContent = diff === 0 ? "C’est jour de marché !" : fmt(nextN);
+document.getElementById("when").textContent =
+  diff === 0 ? fmt(nextN) : diff === 1 ? "Demain" : "Dans " + diff + " jours";
+
+// Liste des 5 prochains marchés
+var list = document.getElementById("next");
+for (var i = 0; i < 5; i++) {
+  var n = nextN + i * CYCLE;
+  var delta = n - todayN;
+  var li = document.createElement("li");
+  var a = document.createElement("span");
+  a.textContent = fmt(n);
+  var b = document.createElement("span");
+  b.textContent = delta === 0 ? "aujourd’hui" : delta === 1 ? "demain" : "dans " + delta + " j";
+  li.appendChild(a); li.appendChild(b);
+  list.appendChild(li);
+}
+
+// Calendrier mensuel
+var viewY = now.getFullYear(), viewM = now.getMonth();
+function render() {
+  document.getElementById("month").textContent = MOIS[viewM] + " " + viewY;
+  var grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  ["L", "M", "M", "J", "V", "S", "D"].forEach(function (t) {
+    var h = document.createElement("div");
+    h.className = "dow"; h.textContent = t; grid.appendChild(h);
+  });
+  var first = new Date(Date.UTC(viewY, viewM, 1)).getUTCDay(); // 0 = dimanche
+  var offset = (first + 6) % 7; // semaine commençant le lundi
+  for (var k = 0; k < offset; k++) grid.appendChild(document.createElement("div"));
+  var count = new Date(Date.UTC(viewY, viewM + 1, 0)).getUTCDate();
+  for (var d = 1; d <= count; d++) {
+    var n = dayNum(viewY, viewM, d);
+    var c = document.createElement("div");
+    c.className = "day" + (isMarket(n) ? " market" : "") + (n === todayN ? " today" : "");
+    c.textContent = d;
+    grid.appendChild(c);
+  }
+}
+document.getElementById("prev").onclick = function () {
+  viewM--; if (viewM < 0) { viewM = 11; viewY--; } render();
+};
+document.getElementById("nextm").onclick = function () {
+  viewM++; if (viewM > 11) { viewM = 0; viewY++; } render();
+};
+render();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
